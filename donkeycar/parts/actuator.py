@@ -678,3 +678,95 @@ class ServoBlaster(object):
         self.run((self.max + self.min) / 2)
         self.servoblaster.close()
 
+def callbackfunc(telemetry):
+    if telemetry['m_BtnStatus'][0] == 0:
+        TouchEvent = 0
+    else:
+        TouchEvent = 1
+    iCompass_pm180deg = telemetry['m_iCompass_pm180deg']
+    IMUyawDeg = telemetry['m_fRPYdeg'][2]
+    #print("User handler: TouchEvent=%d,Compass=%2.1f(Deg),yaw=%2.1f(Deg)"%(TouchEvent,iCompass_pm180deg,IMUyawDeg))
+
+class m2driveByWire:
+    ''' 
+    #DRIVE_BY_WIRE_OVER_THE_AIR uses bluetooth wireless link to exchange drive control cmd and vehicle status(attitude/imu&magnetic raw data/etc) between computer running self-driving high level perception/decision computer and chassis with power train(drive by wire for auto-calibration/diagnosis)
+    '''
+    def __init__(self,BLE_MAC_ADDR,BLE_ADAPTOR_ID):
+        from m2controller import m2controller
+        from m2controller import m2Const
+        import signal
+        import time
+        # Initialise
+        self.throttle = 0
+        self.steering = 0
+        self.m_BLE_MAC_ADDR = BLE_MAC_ADDR
+        self.m_BLE_ADAPTOR_ID = BLE_ADAPTOR_ID
+        self.controller = m2controller.BleCtrller(m2Const.etDebian,callbackfunc,self.m_BLE_MAC_ADDR,self.m_BLE_ADAPTOR_ID)
+        self.controller.clearPreviousCmd()
+        self.controller.setPWM_n_pm1(0,0)
+        self.controller.setPWM_n_pm1(2,0)
+        self.controller.SendCmdTransBlking()
+        time.sleep(0.1)
+
+    def set_throttle(self, throttle):
+        self.controller.setPWM_n_pm1(2,throttle)
+        self.controller.SendCmdTransBlking()
+
+    def set_steering(self, steering):
+        self.controller.setPWM_n_pm1(0,steering)
+        self.controller.SendCmdTransBlking()
+
+    def set_steering_throt(self, steering, throttle):
+        self.controller.clearPreviousCmd()
+        self.controller.setPWM_n_pm1(0,steering)
+        self.controller.setPWM_n_pm1(2,throttle)
+        self.controller.SendCmdTransBlking()
+
+    def run(self, pulse):
+        self.set_pulse(pulse)
+
+class m2Steering:
+    """
+    Wrapper over a motor cotnroller to convert angles to ble control cmd.
+    """
+    LEFT_ANGLE = -1 
+    RIGHT_ANGLE = 1
+    def __init__(self, controller=None):
+        self.controller = controller
+
+    def run(self, angle):
+        #print("steering %f"%angle)
+        #map absolute angle to angle that vehicle can implement.
+        #pulse = dk.utils.map_range(angle,
+        #                        self.LEFT_ANGLE, self.RIGHT_ANGLE,
+        #                        -1, 1)
+        #print("angle %f=>%f"%(angle,pulse))
+        self.controller.set_steering(angle)
+
+    def shutdown(self):
+        self.run(0) #set steering straight
+
+
+
+class m2Throttle:
+    """
+    Wrapper over a PWM motor cotnroller to convert -1 to 1 throttle
+    values to PWM pulses.
+    """
+    MIN_THROTTLE = -1
+    MAX_THROTTLE =  1
+
+    def __init__(self, controller=None):
+        self.controller = controller
+        
+    def run(self, throttle):
+        
+        #pulse = dk.utils.map_range(throttle,
+        #                        -0.5, 0.5, 
+        #                        -1, 1)
+        #print("throttle %f=>%f"%(throttle,pulse))
+        self.controller.set_throttle(throttle*2)
+        
+    def shutdown(self):
+        self.run(0) #stop vehicle
+

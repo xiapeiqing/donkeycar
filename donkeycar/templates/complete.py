@@ -501,6 +501,14 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None, camera_type
         V.add(steering, inputs=['angle'])
         V.add(motor, inputs=["throttle"])
 
+    elif cfg.DRIVE_TRAIN_TYPE == "DRIVE_BY_WIRE_OVER_THE_AIR":
+        from donkeycar.parts.actuator import m2driveByWire, m2Steering, m2Throttle
+        m2driveByWireCtrller = m2driveByWire(cfg.BLE_MAC_ADDR,cfg.BLE_ADAPTOR_ID)
+        steering = m2Steering(controller=m2driveByWireCtrller)
+        throttle = m2Throttle(controller=m2driveByWireCtrller)
+        V.add(steering, inputs=['angle'])
+        V.add(throttle, inputs=['throttle'])
+
     
     #add tub to save data
 
