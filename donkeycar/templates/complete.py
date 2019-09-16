@@ -256,6 +256,16 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None, camera_type
         from donkeycar.parts.sombrero import Sombrero
         s = Sombrero()
 
+    if cfg.DRIVE_TRAIN_TYPE == "DRIVE_BY_WIRE_OVER_THE_AIR":
+        from donkeycar.parts.actuator import m2driveByWireActuator
+        m2driveByWireCtrller = m2driveByWireActuator(cfg.BLE_MAC_ADDR,cfg.BLE_ADAPTOR_ID)
+        V.add(m2driveByWireCtrller, 
+                outputs=['m2r/acc_x', 'm2r/acc_y', 'm2r/acc_z',
+                   'm2r/gyr_x', 'm2r/gyr_y', 'm2r/gyr_z',
+                   'm2r/mag_x', 'm2r/mag_y', 'm2r/mag_z',
+                   'm2r/roll', 'm2r/pitch', 'm2r/yaw'], 
+                threaded=True)
+
     #IMU
     if cfg.HAVE_IMU:
         from donkeycar.parts.imu import Mpu6050
@@ -502,8 +512,7 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None, camera_type
         V.add(motor, inputs=["throttle"])
 
     elif cfg.DRIVE_TRAIN_TYPE == "DRIVE_BY_WIRE_OVER_THE_AIR":
-        from donkeycar.parts.actuator import m2driveByWire, m2Steering, m2Throttle
-        m2driveByWireCtrller = m2driveByWire(cfg.BLE_MAC_ADDR,cfg.BLE_ADAPTOR_ID)
+        from donkeycar.parts.actuator import m2Steering, m2Throttle
         steering = m2Steering(controller=m2driveByWireCtrller)
         throttle = m2Throttle(controller=m2driveByWireCtrller)
         V.add(steering, inputs=['angle'])
@@ -523,6 +532,17 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None, camera_type
     if cfg.TRAIN_BEHAVIORS:
         inputs += ['behavior/state', 'behavior/label', "behavior/one_hot_state_array"]
         types += ['int', 'str', 'vector']
+    
+    if cfg.DRIVE_TRAIN_TYPE == "DRIVE_BY_WIRE_OVER_THE_AIR":
+        inputs += ['m2r/acc_x', 'm2r/acc_y', 'm2r/acc_z',
+                   'm2r/gyr_x', 'm2r/gyr_y', 'm2r/gyr_z',
+                   'm2r/mag_x', 'm2r/mag_y', 'm2r/mag_z',
+                   'm2r/roll', 'm2r/pitch', 'm2r/yaw',
+            ]
+        types +=['float', 'float', 'float',
+                 'float', 'float', 'float',
+                 'float', 'float', 'float',
+                 'float', 'float', 'float']
     
     if cfg.HAVE_IMU:
         inputs += ['imu/acl_x', 'imu/acl_y', 'imu/acl_z',
